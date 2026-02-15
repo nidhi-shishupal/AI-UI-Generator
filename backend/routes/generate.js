@@ -34,6 +34,44 @@ router.post("/", (req, res, next) => {
 
         const { plan } = parseResult.data;
 
+        function normalizeComponent(component) {
+
+            if (!component || !component.type) return null;
+
+            const base = {
+                type: component.type,
+                props: component.props || {},
+                children: Array.isArray(component.children) ? component.children : []
+            };
+
+            // Default props per component
+            switch (base.type) {
+
+                case "Card":
+                    base.props.title ||= "Card";
+                    break;
+
+                case "Input":
+                    base.props.label ||= "Input";
+                    base.props.placeholder ||= base.props.label;
+                    break;
+
+                case "Button":
+                    base.props.label ||= "Click";
+                    break;
+
+                case "Modal":
+                    base.props.title ||= "Modal";
+                    break;
+            }
+
+            base.children = base.children
+                .map(normalizeComponent)
+                .filter(Boolean);
+
+            return base;
+        }
+
         if (!Array.isArray(plan.components)) {
             const error = new Error("Plan.components must be an array");
             error.statusCode = 400;
@@ -44,9 +82,12 @@ router.post("/", (req, res, next) => {
 
         const safeComponents = plan.components
             .slice(0, MAX_COMPONENTS)
+            .map(normalizeComponent)
+            .filter(Boolean)
             .map(sanitizeComponent)
             .filter(Boolean)
             .map(component => limitDepth(component));
+
 
         /* -------- Generate JSX -------- */
 

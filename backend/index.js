@@ -6,7 +6,6 @@ import generateRoute from "./routes/generate.js";
 import explainRoute from "./routes/explain.js";
 import { requestLogger } from "./middlewares/logger.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
-import { planSchema } from "./validators/planValidator.js";
 import fs from "fs";
 
 dotenv.config();
@@ -18,8 +17,8 @@ const HISTORY_FILE = "./planHistory.json";
 
 // Load history on startup
 if (fs.existsSync(HISTORY_FILE)) {
-    const data = fs.readFileSync(HISTORY_FILE);
-    planHistory = JSON.parse(data);
+  const data = fs.readFileSync(HISTORY_FILE);
+  planHistory = JSON.parse(data);
 }
 
 /* -------- Core Middleware -------- */
@@ -31,20 +30,20 @@ app.use(requestLogger);
 /* -------- Rate Limiting -------- */
 
 app.use(
-    rateLimit({
-        windowMs: 60 * 1000,
-        max: 30
-    })
+  rateLimit({
+    windowMs: 60 * 1000,
+    max: 30
+  })
 );
 
 /* -------- Health Endpoint -------- */
 
 app.get("/api/v1/health", (req, res) => {
-    res.json({
-        status: "OK",
-        uptime: process.uptime(),
-        timestamp: Date.now()
-    });
+  res.json({
+    status: "OK",
+    uptime: process.uptime(),
+    timestamp: Date.now()
+  });
 });
 
 /* -------- Routes -------- */
@@ -55,28 +54,23 @@ app.use("/api/v1/explain", explainRoute);
 /* -------- Root -------- */
 
 app.get("/", (req, res) => {
-    res.send("AI UI Generator Backend Running");
+  res.send("AI UI Generator Backend Running");
 });
 
 /* -------- PLAN -------- */
 
 function limitDepth(component, depth = 0, maxDepth = 3) {
-    if (depth > maxDepth) return null;
+  if (depth > maxDepth) return null;
 
-    return {
-        ...component,
-        children: (component.children || [])
-            .map(child => limitDepth(child, depth + 1, maxDepth))
-            .filter(Boolean)
-    };
+  return {
+    ...component,
+    children: (component.children || [])
+      .map(child => limitDepth(child, depth + 1, maxDepth))
+      .filter(Boolean)
+  };
 }
 
 app.post("/api/v1/plan", async (req, res, next) => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => {
-    controller.abort();
-  }, 30000); // 30 sec
-
   try {
     const { userPrompt, previousPlan } = req.body;
 
@@ -88,82 +82,301 @@ app.post("/api/v1/plan", async (req, res, next) => {
 
     console.log("---- PLAN REQUEST ----");
     console.log("Prompt:", userPrompt);
-    console.log("Previous plan exists:", !!previousPlan);
 
-    const messages = [
-      {
-        role: "system",
-        content: `
-You are a UI planner.
+    /* ---------------- INTENT DETECTION (FAST + RELIABLE) ---------------- */
 
-Return STRICT JSON only in this format:
+    const text = userPrompt.toLowerCase();
 
-{
-  "layout": "single-column | centered-card | two-column | dashboard",
-  "components": [
-    {
-      "type": "Card | Input | Button | Modal",
-      "props": {},
-      "children": []
+    let intent = "default";
+    let action = "create";
+
+    if (
+      text.includes("add") ||
+      text.includes("remove") ||
+      text.includes("change") ||
+      text.includes("update") ||
+      text.includes("make") ||
+      text.includes("replace")
+    ) {
+      action = "edit";
     }
-  ]
-}
 
-Rules:
-- Card and Modal use "title"
-- Input and Button use "label"
-- Preserve previous plan if provided
-- Return ONLY valid JSON
-`
+    // AUTH SCREENS
+    if (
+      text.match(/login|sign in|signin|authentication|auth/)
+    ) {
+      intent = "login";
+    }
+
+    // REGISTRATION
+    else if (
+      text.match(/register|signup|sign up|create account/)
+    ) {
+      intent = "register";
+    }
+
+    // CONTACT / INPUT FORMS
+    else if (
+      text.match(/contact|feedback|form|apply|submit details/)
+    ) {
+      intent = "form";
+    }
+
+    // DASHBOARD
+    else if (
+      text.match(/dashboard|admin panel|analytics|control panel/)
+    ) {
+      intent = "dashboard";
+    }
+
+    // SEARCH UI
+    else if (
+      text.match(/search|filter|find|lookup/)
+    ) {
+      intent = "search";
+    }
+
+    else if (text.match(/profile|account details|user info/)) {
+      intent = "profile";
+    }
+    else if (text.match(/settings|preferences|change password/)) {
+      intent = "settings";
+    }
+    else if (text.match(/table|list|records|data list|users list/)) {
+      intent = "list";
+    }
+    else if (text.match(/landing|homepage|home page|marketing page/)) {
+      intent = "landing";
+    }
+    else if (text.match(/popup|modal|dialog/)) {
+      intent = "modal";
+    }
+    else if (text.match(/contact us|support page|help form/)) {
+      intent = "contact";
+    }
+
+    /* ---------------- PLAN BUILDER ---------------- */
+
+    function buildPlan(intent) {
+      if (previousPlan && intent === "login" && userPrompt.includes("forgot")) {
+        const updated = JSON.parse(JSON.stringify(previousPlan));
+
+        updated.components[0].children.push({
+          type: "Button",
+          props: { label: "Forgot Password" },
+          children: []
+        });
+
+        return updated;
       }
-    ];
+      switch (intent) {
 
-    if (previousPlan) {
-      messages.push({
-        role: "system",
-        content: `Current UI:\n${JSON.stringify(previousPlan)}`
-      });
+        case "login":
+          return {
+            layout: "centered-card",
+            components: [
+              {
+                type: "Card",
+                props: { title: "Login" },
+                children: [
+                  { type: "Input", props: { label: "Email" }, children: [] },
+                  { type: "Input", props: { label: "Password" }, children: [] },
+                  { type: "Button", props: { label: "Submit" }, children: [] }
+                ]
+              }
+            ]
+          };
+
+        case "form":
+          return {
+            layout: "single-column",
+            components: [
+              { type: "Input", props: { label: "Name" }, children: [] },
+              { type: "Input", props: { label: "Email" }, children: [] },
+              { type: "Button", props: { label: "Submit" }, children: [] }
+            ]
+          };
+
+        case "register":
+          return {
+            layout: "centered-card",
+            components: [
+              {
+                type: "Card",
+                props: { title: "Create Account" },
+                children: [
+                  { type: "Input", props: { label: "Name" }, children: [] },
+                  { type: "Input", props: { label: "Email" }, children: [] },
+                  { type: "Input", props: { label: "Password" }, children: [] },
+                  { type: "Button", props: { label: "Register" }, children: [] }
+                ]
+              }
+            ]
+          };
+
+        case "search":
+          return {
+            layout: "single-column",
+            components: [
+              { type: "Input", props: { label: "Search..." }, children: [] },
+              { type: "Button", props: { label: "Find" }, children: [] }
+            ]
+          };
+
+        case "dashboard":
+          return {
+            layout: "dashboard",
+            components: [
+              { type: "Card", props: { title: "Users" }, children: [] },
+              { type: "Card", props: { title: "Revenue" }, children: [] },
+              { type: "Card", props: { title: "Performance" }, children: [] }
+            ]
+          };
+
+        case "profile":
+          return {
+            layout: "single-column",
+            components: [
+              { type: "Input", props: { label: "Full Name" }, children: [] },
+              { type: "Input", props: { label: "Email" }, children: [] },
+              { type: "Button", props: { label: "Update Profile" }, children: [] }
+            ]
+          };
+
+        case "settings":
+          return {
+            layout: "single-column",
+            components: [
+              { type: "Input", props: { label: "New Password" }, children: [] },
+              { type: "Input", props: { label: "Confirm Password" }, children: [] },
+              { type: "Button", props: { label: "Save Settings" }, children: [] }
+            ]
+          };
+
+        case "list":
+          return {
+            layout: "dashboard",
+            components: [
+              { type: "Card", props: { title: "User 1" }, children: [] },
+              { type: "Card", props: { title: "User 2" }, children: [] },
+              { type: "Card", props: { title: "User 3" }, children: [] }
+            ]
+          };
+
+        case "landing":
+          return {
+            layout: "centered-card",
+            components: [
+              {
+                type: "Card",
+                props: { title: "Welcome" },
+                children: [
+                  {
+                    type: "Button",
+                    props: { label: "Get Started" },
+                    children: []
+                  }
+                ]
+              }
+            ]
+          };
+
+
+        case "modal":
+          return {
+            layout: "centered-card",
+            components: [
+              {
+                type: "Card",
+                props: { title: "Confirmation" },
+                children: [
+                  { type: "Button", props: { label: "Confirm" }, children: [] },
+                  { type: "Button", props: { label: "Cancel" }, children: [] }
+                ]
+              }
+            ]
+          };
+
+        case "contact":
+          return {
+            layout: "single-column",
+            components: [
+              { type: "Input", props: { label: "Name" }, children: [] },
+              { type: "Input", props: { label: "Email" }, children: [] },
+              { type: "Input", props: { label: "Message" }, children: [] },
+              { type: "Button", props: { label: "Send Message" }, children: [] }
+            ]
+          };
+
+        default:
+          console.log("Fallback UI used");
+
+          return {
+            layout: "centered-card",
+            components: [
+              {
+                type: "Card",
+                props: { title: "AI Generated UI" },
+                children: [
+                  { type: "Input", props: { label: "Text" }, children: [] },
+                  { type: "Button", props: { label: "Submit" }, children: [] }
+                ]
+              }
+            ]
+          };
+      }
     }
 
-    messages.push({
-      role: "user",
-      content: userPrompt
-    });
+    function editPlan(existingPlan, text) {
+      if (!existingPlan) return buildPlan(intent);
 
-    const response = await fetch(process.env.OLLAMA_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "phi",
-        messages,
-        stream: false
-      }),
-      signal: controller.signal
-    });
+      const plan = JSON.parse(JSON.stringify(existingPlan));
 
-    const data = await response.json();
+      // Add remember me
+      if (text.includes("remember")) {
+        plan.components[0].children.push({
+          type: "Input",
+          props: { label: "Remember Me" },
+          children: []
+        });
+      }
 
-    clearTimeout(timeout); 
+      // Add confirm password
+      if (text.includes("confirm password")) {
+        plan.components[0].children.push({
+          type: "Input",
+          props: { label: "Confirm Password" },
+          children: []
+        });
+      }
 
-    if (!data?.message?.content) {
-      throw new Error("Invalid AI response");
+      // Remove button
+      if (text.includes("remove button")) {
+        plan.components[0].children =
+          plan.components[0].children.filter(c => c.type !== "Button");
+      }
+
+      // Change title
+      if (text.includes("signup")) {
+        plan.components[0].props.title = "Sign Up";
+      }
+
+      return plan;
     }
 
-    const parsed = JSON.parse(data.message.content);
+    let plan;
 
-    res.json({ plan: parsed });
+    if (action === "edit" && previousPlan) {
+      console.log("Editing existing UI...");
+      plan = editPlan(previousPlan, text);
+    } else {
+      console.log("Creating new UI...");
+      plan = buildPlan(intent);
+    }
+
+    res.json({ plan });
 
   } catch (error) {
-    clearTimeout(timeout); 
-
-    if (error.name === "AbortError") {
-      return next(
-        Object.assign(new Error("AI request timed out"), {
-          statusCode: 504
-        })
-      );
-    }
-
     next(error);
   }
 });
@@ -177,5 +390,5 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

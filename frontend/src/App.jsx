@@ -8,15 +8,19 @@ import Particles from "react-tsparticles";
 const componentMap = { Card, Input, Button, Modal };
 const BASE = "http://localhost:5000/api/v1";
 
-function renderComponent(component, index) {
+function renderComponent(component, path = "0") {
+  if (!component || !component.type) return null;
+
   const Component = componentMap[component.type];
   if (!Component) return null;
 
+  const children = (component.children || []).map((child, i) =>
+    renderComponent(child, `${path}-${i}`)
+  );
+
   return (
-    <Component key={index} {...component.props}>
-      {component.children?.map((child, i) =>
-        renderComponent(child, i)
-      )}
+    <Component key={path} {...component.props}>
+      {children}
     </Component>
   );
 }
@@ -27,6 +31,7 @@ function App() {
   const [code, setCode] = useState("");
   const [explanation, setExplanation] = useState("");
   const [history, setHistory] = useState([]);
+  const [promptHistory, setPromptHistory] = useState([]);
   const [currentVersion, setCurrentVersion] = useState(-1);
   const [loading, setLoading] = useState(false);
   const [viewJSON, setViewJSON] = useState(false);
@@ -56,6 +61,7 @@ function App() {
       if (!planData.plan) throw new Error("Plan failed");
 
       setPlan(planData.plan);
+      setPromptHistory(prev => [prompt, ...prev.slice(0, 4)]);
 
       setHistory(prev => {
         const updated = [...prev.slice(0, currentVersion + 1), planData.plan];
@@ -84,7 +90,29 @@ function App() {
       const expData = await expRes.json();
       setExplanation(expData.explanation || "");
 
+      // AI Suggestions (simple heuristic assistant)
+      const lower = prompt.toLowerCase();
+      let tips = [];
+
+      if (lower.includes("login") && !lower.includes("remember")) {
+        tips.push("Try adding: remember me checkbox");
+      }
+
+      if (lower.includes("dashboard") && !lower.includes("chart")) {
+        tips.push("Dashboards look better with charts or stats cards");
+      }
+
+      if (lower.includes("form") && !lower.includes("validation")) {
+        tips.push("You may want validation messages");
+      }
+
+      if (tips.length > 0) {
+        setExplanation(prev => prev + "\n\n💡 Suggestions:\n- " + tips.join("\n- "));
+      }
+
+      if (loading) return;
     } catch (err) {
+      alert("Failed to generate UI. Please try again.");
       console.error(err);
     } finally {
       setLoading(false);
@@ -93,8 +121,8 @@ function App() {
 
   const previewWidth =
     device === "mobile" ? "375px" :
-    device === "tablet" ? "768px" :
-    "100%";
+      device === "tablet" ? "768px" :
+        "100%";
 
   const renderLayout = () => {
     if (!plan) return <p>Your generated UI will appear here.</p>;
@@ -104,26 +132,42 @@ function App() {
         return (
           <div style={{ display: "flex", justifyContent: "center" }}>
             <div style={{ maxWidth: "400px", width: "100%" }}>
-              {plan.components.map(renderComponent)}
+              {plan.components.map((c, i) => renderComponent(c, String(i)))}
             </div>
           </div>
         );
       case "two-column":
         return (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-            {plan.components.map(renderComponent)}
+            {plan.components.map((c, i) => renderComponent(c, String(i)))}
           </div>
         );
       case "dashboard":
         return (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "20px" }}>
-            {plan.components.map(renderComponent)}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: "20px",
+            width: "100%"
+          }}>
+            {plan.components.map((c, i) => renderComponent(c, String(i)))}
           </div>
         );
+
       default:
+        if (!plan)
+          return (
+            <div style={{
+              opacity: 0.6,
+              textAlign: "center",
+              padding: "60px 20px"
+            }}>
+              ✨ Describe a UI in the left panel and click Generate UI
+            </div>
+          );
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            {plan.components.map(renderComponent)}
+            {plan.components.map((c, i) => renderComponent(c, String(i)))}
           </div>
         );
     }
@@ -132,6 +176,9 @@ function App() {
   return (
     <div style={{
       minHeight: "100vh",
+      width: "100%",
+      overflowX: "hidden",
+      overflowY: "auto",
       background: "radial-gradient(circle at 20% 20%, #1e293b, #0f172a)",
       fontFamily: "Inter, sans-serif",
       color: "#e5e7eb"
@@ -164,7 +211,12 @@ function App() {
         justifyContent: "space-between",
         alignItems: "center"
       }}>
-        <h1>⚡ AI Control Panel</h1>
+        <div>
+          <h1>⚡ AI Control Panel</h1>
+          <div style={{ fontSize: "12px", color: "#94a3b8" }}>
+            {loading ? "AI is designing your UI..." : "Ready"}
+          </div>
+        </div>
         <span style={{
           width: "10px",
           height: "10px",
@@ -176,23 +228,96 @@ function App() {
       {/* MAIN GRID */}
       <div style={{
         display: "grid",
-        gridTemplateColumns: "320px 1.6fr 1fr",
+        gridTemplateColumns: "320px minmax(600px,1.6fr) minmax(380px,1fr)",
         gap: "30px",
-        padding: "0 40px 40px 40px"
+        padding: "0 40px 40px 40px",
+        maxWidth: "1600px",
+        margin: "0 auto"
       }}>
 
         {/* LEFT */}
         <GlassCard>
           <h3>AI Chat</h3>
+
+          <div style={{
+            fontSize: "12px",
+            opacity: 0.7,
+            marginBottom: "8px",
+            lineHeight: "1.4"
+          }}>
+          </div>
+
+          {/* Prompt Suggestions */}
+          <div style={{ marginBottom: "12px" }}>
+            <div style={{ fontSize: "13px", opacity: 0.7, marginBottom: "6px" }}>
+              Try examples:
+            </div>
+            {[
+              "Login form with remember me",
+              "User profile card",
+              "Admin dashboard with stats",
+              "Contact form with message box",
+              "Settings page with modal"
+            ].map((ex, i) => (
+              <button
+                key={i}
+                onClick={() => setPrompt(ex)}
+                style={{
+                  margin: "4px",
+                  padding: "6px 10px",
+                  borderRadius: "999px",
+                  border: "1px solid rgba(59,130,246,0.4)",
+                  background: "#0b1220",
+                  color: "#93c5fd",
+                  cursor: "pointer",
+                  fontSize: "12px"
+                }}
+              >
+                {ex}
+              </button>
+            ))}
+          </div>
+
           <textarea
-            rows={4}
+            rows={5}
+            placeholder="Describe the UI you want..."
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             style={inputStyle}
           />
+
+          <div style={{ marginBottom: "10px" }}>
+            <small style={{ opacity: 0.6 }}>Quick add:</small>
+            {["remember me", "forgot password", "profile avatar", "statistics cards"].map(s => (
+              <button
+                key={s}
+                style={{ ...deviceButton, fontSize: "12px", margin: "4px" }}
+                onClick={() => setPrompt(p => p + " " + s)}
+              >
+                + {s}
+              </button>
+            ))}
+          </div>
+
           <button onClick={handleGenerate} style={neonButton}>
             {loading ? "Generating..." : "Generate UI"}
           </button>
+
+          <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+            <button
+              onClick={() => setPrompt("")}
+              style={deviceButton}
+            >
+              Clear
+            </button>
+
+            <button
+              onClick={() => setPrompt(prev => prev + " modern clean minimal UI")}
+              style={deviceButton}
+            >
+              Improve Prompt
+            </button>
+          </div>
 
           {history.length > 0 && (
             <>
@@ -216,11 +341,49 @@ function App() {
               ))}
             </>
           )}
+
+          {promptHistory.length > 0 && (
+            <>
+              <h4 style={{ marginTop: "20px" }}>Recent Prompts</h4>
+              {promptHistory.map((p, i) => (
+                <div
+                  key={i}
+                  onClick={() => setPrompt(p)}
+                  style={{
+                    padding: "6px",
+                    marginBottom: "6px",
+                    background: "#020617",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    color: "#94a3b8",
+                    fontSize: "13px"
+                  }}
+                >
+                  {p}
+                </div>
+              ))}
+            </>
+          )}
+
         </GlassCard>
 
         {/* CENTER */}
         <GlassCard>
           <h3>Live Preview</h3>
+          {loading && (
+            <div style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(2,6,23,0.6)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "16px",
+              fontSize: "18px"
+            }}>
+              Generating UI...
+            </div>
+          )}
 
           <div style={{ marginBottom: "15px" }}>
             <button onClick={() => setDevice("desktop")} style={deviceButton}>Desktop</button>
@@ -232,12 +395,19 @@ function App() {
             padding: "30px",
             background: "#0b1220",
             borderRadius: "16px",
-            overflow: "auto"
+            overflow: "visible",
+            maxHeight: "600px"
           }}>
-            <div style={{ width: previewWidth }}>
+
+            <div style={{
+              width: "100%",
+              maxWidth: previewWidth,
+              margin: "0 auto"
+            }}>
               {renderLayout()}
             </div>
           </div>
+
         </GlassCard>
 
         {/* RIGHT */}
@@ -256,6 +426,12 @@ function App() {
           </div>
 
           <h4 style={{ marginTop: "20px" }}>Generated Code</h4>
+          <button
+            style={{ ...deviceButton, marginBottom: "10px" }}
+            onClick={() => navigator.clipboard.writeText(code)}
+          >
+            Copy Code
+          </button>
           <pre style={codeStyle}>{code}</pre>
         </GlassCard>
 

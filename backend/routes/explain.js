@@ -4,12 +4,36 @@ import { explainSchema } from "../validators/explainValidator.js";
 
 const router = express.Router();
 
-const MAX_COMPONENTS = 20;
+const MAX_COMPONENTS = 30;
 const MAX_TEXT_LENGTH = 5000;
+
+/* -------- Recursive Component Reader -------- */
+
+function describeComponent(component, depth = 0, list = []) {
+    if (!component || depth > 5) return list;
+
+    const label =
+        component.props?.label ||
+        component.props?.title ||
+        "no label";
+
+    list.push(
+        `${" ".repeat(depth * 2)}• ${component.type} (${label})`
+    );
+
+    if (Array.isArray(component.children)) {
+        component.children.forEach(child =>
+            describeComponent(child, depth + 1, list)
+        );
+    }
+
+    return list;
+}
 
 router.post("/", (req, res, next) => {
     try {
-        /* -------- Zod Validation -------- */
+
+        /* -------- Validation -------- */
 
         const parseResult = explainSchema.safeParse(req.body);
 
@@ -22,6 +46,14 @@ router.post("/", (req, res, next) => {
 
         const { plan, userPrompt } = parseResult.data;
 
+        /* -------- Hard Safety -------- */
+
+        if (!plan || !Array.isArray(plan.components)) {
+            return res.json({
+                explanation: "AI generated an empty interface."
+            });
+        }
+
         /* -------- Sanitize -------- */
 
         const safeComponents = plan.components
@@ -31,28 +63,22 @@ router.post("/", (req, res, next) => {
 
         /* -------- Generate Explanation -------- */
 
-        const explanation = [
-            `User intent: "${userPrompt}"`,
-            `Layout: ${plan.layout || "default"}`
-        ];
+        const explanationLines = [];
 
-        safeComponents.forEach((component, index) => {
-            const label =
-                component.props?.label ||
-                component.props?.title ||
-                "N/A";
+        explanationLines.unshift("🧠 AI understood your request and created this structure:\n");
+        explanationLines.push(`User requested: ${userPrompt}`);
+        explanationLines.push(`Layout used: ${plan.layout || "default"}`);
+        explanationLines.push(`UI Structure:`);
 
-            explanation.push(
-                `Component ${index + 1}: ${component.type} with value "${label}".`
-            );
+        safeComponents.forEach(component => {
+            describeComponent(component, 0, explanationLines);
         });
 
-        const finalText = explanation.join("\n");
+        const finalText = explanationLines.join("\n");
 
         if (finalText.length > MAX_TEXT_LENGTH) {
-            return res.status(500).json({
-                error: true,
-                message: "Explanation too large"
+            return res.json({
+                explanation: "UI is too large to explain."
             });
         }
 
