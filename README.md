@@ -1,77 +1,141 @@
-# AI UI Generator
+# ⚡ AI UI Generator
 
-An AI powered UI builder that converts natural language prompts into structured UI layouts and live React preview.
+An AI‑assisted UI builder that converts natural language prompts into a structured UI layout, renders a live preview, generates JSX code, and explains the interface structure.
 
-## Live Application
+The project works completely offline using local LLMs (Ollama) and a custom rule‑based planner for speed and reliability.
 
-http://localhost:5173/
+---
 
-## Features
+## 🚀 Features
 
-- Prompt → UI Layout generation
-- Live preview rendering
-- JSX code generation
-- Explanation generation
-- Version history rollback
-- Prompt history
-- Device preview (desktop/tablet/mobile)
-- Multiple layouts (card, dashboard, forms)
-- Safe component sanitization
+* 🧠 Prompt → UI Plan (intent detection + fallback AI classification)
+* 🧱 Component‑based renderer (Card, Input, Button, Modal)
+* 👀 Live Preview with device switch (desktop/tablet/mobile)
+* 🧾 JSX Code generation
+* 📖 Human‑readable UI explanation
+* 🕓 Version history & rollback
+* 💡 Prompt suggestions & recent prompts
+* 🔒 Sanitized and validated plans (Zod + security filters)
+* ⚡ Works without OpenAI API (runs locally via Ollama)
 
-## Tech Stack
+---
 
-Frontend:
-- React
-- Custom component renderer
-- Dynamic layout engine
+## 🏗️ Architecture
 
-Backend:
-- Node.js
-- Express
-- OpenAI API
+### Frontend (React)
 
-## How It Works
+* Dynamic component renderer
+* Inspector panel (JSON + explanation)
+* Prompt assistant UI
+* Responsive preview simulator
 
-1. User enters UI description
-2. Backend converts prompt → UI plan (JSON schema)
-3. Plan is sanitized for security
-4. React dynamically renders components
-5. JSX code + explanation generated
+### Backend (Node.js + Express)
 
-## Architecture
+* `/plan` → Builds UI structure
+* `/generate` → Converts plan to JSX
+* `/explain` → Generates human explanation
+* Input validation & sanitization
+* Depth & component limits for safety
 
-Prompt → Plan API → Sanitize → Renderer → Generate → Explain
+### AI Layer
 
-## Safety
+Hybrid approach:
 
-Only allowed components rendered:
-- Card
-- Button
-- Input
-- Modal
+1. Fast rule‑based intent detection
+2. Fallback LLM classification (Ollama)
 
-Prevents arbitrary code execution.
+---
 
-## Example Prompts
+## 🧩 Supported UI Types
 
-- Login form with remember me
-- Admin dashboard with stats
-- User profile card
-- Settings modal
+* Login Form
+* Forms
+* Dashboard
+* Cards
+* Settings / Modal layouts
+* Generic fallback UI
 
-## Run Locally
+---
 
-### Backend
+## 🛠️ Tech Stack
 
+**Frontend**
+
+* React
+* Inline styling (glassmorphism UI)
+* react‑tsparticles
+
+**Backend**
+
+* Node.js
+* Express
+* Zod validation
+* Rate limiting & sanitization
+
+**AI**
+
+* Ollama (local LLM)
+
+---
+
+## ⚙️ Setup Instructions
+
+### 1. Clone Repository
+
+```
+git clone <repo_url>
+cd ai-ui-generator
+```
+
+### 2. Backend Setup
+
+```
 cd backend
 npm install
+```
+
+Create `.env`
+
+```
+OLLAMA_URL=http://localhost:11434/api/generate
+PORT=5000
+```
+
+Start server:
+
+```
 node index.js
+```
 
-### Frontend
+### 3. Frontend Setup
 
+```
 cd frontend
 npm install
 npm run dev
+```
 
-Server runs at:
-http://localhost:5000
+---
+
+## 🧪 Example Prompts
+
+* Login form with remember me
+* Admin dashboard with stats cards
+* User profile card
+* Contact form with message box
+* Settings page with modal
+
+---
+
+## 📌 Security Measures
+
+* Allowed component whitelist
+* Props filtering
+* Max depth & component limits
+* Zod schema validation
+* Rate limiting
+
+---
+## 📄 License
+
+This project is submitted as a technical assignment and is intended for educational evaluation purposes.
