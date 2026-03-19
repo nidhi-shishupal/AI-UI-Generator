@@ -1,4 +1,4 @@
-# ⚡ AI UI Generator
+#  AI UI Generator
 
 An AI‑assisted UI builder that converts natural language prompts into a structured UI layout, renders a live preview, generates JSX code, and explains the interface structure.
 
@@ -6,21 +6,21 @@ The project works completely offline using local LLMs (Ollama) and a custom rule
 
 ---
 
-## 🚀 Features
+##  Features
 
-* 🧠 Prompt → UI Plan (intent detection + fallback AI classification)
-* 🧱 Component‑based renderer (Card, Input, Button, Modal)
-* 👀 Live Preview with device switch (desktop/tablet/mobile)
-* 🧾 JSX Code generation
-* 📖 Human‑readable UI explanation
-* 🕓 Version history & rollback
-* 💡 Prompt suggestions & recent prompts
-* 🔒 Sanitized and validated plans (Zod + security filters)
-* ⚡ Works without OpenAI API (runs locally via Ollama)
+*  Prompt → UI Plan (intent detection + fallback AI classification)
+*  Component‑based renderer (Card, Input, Button, Modal)
+*  Live Preview with device switch (desktop/tablet/mobile)
+*  JSX Code generation
+*  Human‑readable UI explanation
+*  Version history & rollback
+*  Prompt suggestions & recent prompts
+*  Sanitized and validated plans (Zod + security filters)
+*  Works without OpenAI API (runs locally via Ollama)
 
 ---
 
-## 🏗️ Architecture
+##  Architecture
 
 ### Frontend (React)
 
@@ -46,7 +46,7 @@ Hybrid approach:
 
 ---
 
-## 🧩 Supported UI Types
+##  Supported UI Types
 
 * Login Form
 * Forms
@@ -57,7 +57,7 @@ Hybrid approach:
 
 ---
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 **Frontend**
 
@@ -78,7 +78,7 @@ Hybrid approach:
 
 ---
 
-## ⚙️ Setup Instructions
+##  Setup Instructions
 
 ### 1. Clone Repository
 
@@ -117,7 +117,7 @@ npm run dev
 
 ---
 
-## 🧪 Example Prompts
+##  Example Prompts
 
 * Login form with remember me
 * Admin dashboard with stats cards
@@ -127,15 +127,10 @@ npm run dev
 
 ---
 
-## 📌 Security Measures
+##  Security Measures
 
 * Allowed component whitelist
 * Props filtering
 * Max depth & component limits
 * Zod schema validation
 * Rate limiting
-
----
-## 📄 License
-
-This project is submitted as a technical assignment and is intended for educational evaluation purposes.
